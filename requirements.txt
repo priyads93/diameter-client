@@ -1,0 +1,4 @@
+dotenv==0.9.9
+python-diameter==0.8.0
+fastapi[standard]==0.95.2
+uvicorn==0.23.1

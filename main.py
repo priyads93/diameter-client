@@ -58,8 +58,8 @@ def build_cer(message: Union[None, cerMessage] = None) -> bytes:
         cer.vendor_id = message.vendor_id
         cer.product_name = message.product_name
         cer.origin_state_id = message.origin_state_id
-        cer.header.application_id = 0    
-        cer.header.command_code = 257
+        cer.header.application_id = message.application_id    
+        cer.header.command_code = message.command_code
         cer.header.hop_by_hop_identifier = message.hop_by_hop_id
         cer.header.end_to_end_identifier = message.end_to_end_id
     # Encode the message
@@ -87,8 +87,6 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         ccr.origin_host = message.origin_host.encode('utf-8')
         ccr.origin_realm = message.origin_realm.encode('utf-8')
         ccr.host_ip_address = message.host_ip_address
-        ccr.hop_by_hop_id = message.hop_by_hop_id
-        ccr.end_to_end_id = message.end_to_end_id
         ccr.cc_request_type = message.cc_request_type  
         ccr.cc_request_number = message.cc_request_number
         ccr.session_id = message.session_id
@@ -96,8 +94,9 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         # Set the service context ID and auth application ID
         ccr.service_context_id = message.service_context_id
         ccr.auth_application_id = message.auth_application_id
-        ccr.application_id = message.application_id
-        ccr.header.application_id = 4
+        ccr.header.application_id = message.application_id
+        ccr.header.hop_by_hop_identifier = message.hop_by_hop_id
+        ccr.header.end_to_end_identifier = message.end_to_end_id
     # Encode the message
     print(ccr.as_bytes())
     return ccr.as_bytes()
