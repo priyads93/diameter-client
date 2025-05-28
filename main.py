@@ -5,7 +5,23 @@ from fastapi import FastAPI
 from diameter.message import Message
 from client_config.client_2 import create_ssl_socket,send_test_message
 from pydantic import BaseModel
+from diameter.message import Avp
+from diameter.message.constants import *
+from typing import Optional
+from diameter.message.avp.dictionary import AVP_DICTIONARY
 
+# AVP Codes
+AVP_SUBSCRIPTION_ID = 443
+AVP_SUBSCRIPTION_ID_TYPE = 450
+AVP_SUBSCRIPTION_ID_DATA = 444
+
+# Vendor ID for 3GPP
+VENDOR_3GPP = 0
+
+class SubscriptionId(BaseModel):
+    type: int 
+    data: str 
+    
 class cerMessage(BaseModel):
     origin_host: str
     origin_realm: str
@@ -31,8 +47,8 @@ class ccrMessage(BaseModel):
     session_id: str
     destination_realm: str
     application_id: int
-    
-
+    requested_action: int
+    subscription_id: Optional[SubscriptionId]
 
 ssl_sock = None  # Define ssl_sock as a global variable
 def build_cer(message: Union[None, cerMessage] = None) -> bytes:
@@ -82,6 +98,7 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         # Set the service context ID and auth application ID
         ccr.service_context_id = 123
         ccr.auth_application_id = 4
+        ccr.requested_action = 0
     else:
         # Use the provided message data
         ccr.origin_host = message.origin_host.encode('utf-8')
@@ -97,6 +114,17 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         ccr.header.application_id = message.application_id
         ccr.header.hop_by_hop_identifier = message.hop_by_hop_id
         ccr.header.end_to_end_identifier = message.end_to_end_id
+        ccr.requested_action = message.requested_action
+       
+        
+        if message.subscription_id:
+            print('ading subscription data')
+            subscription_id_avp = Avp.new(AVP_SUBSCRIPTION_ID, VENDOR_3GPP, value=[
+            Avp.new(AVP_SUBSCRIPTION_ID_TYPE, VENDOR_3GPP, value=message.subscription_id.type),
+            Avp.new(AVP_SUBSCRIPTION_ID_DATA, VENDOR_3GPP, value=message.subscription_id.data)
+            ])
+            # print(message.subscription_id.type,message.subscription_id.data)
+            ccr.append_avp(subscription_id_avp)
     # Encode the message
     print(ccr.as_bytes())
     return ccr.as_bytes()
