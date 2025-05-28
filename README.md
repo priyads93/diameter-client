@@ -28,6 +28,7 @@ PORT=5868
 CA_CERT=<path to server crt file>
 CLIENT_CERT=<path to client cert file>
 CLIENT_KEY=<path to client key file>
+GY_APPLICATION_ID <Gy Application Id. Sample: 16777238>
 ```
 
 # Run the Client

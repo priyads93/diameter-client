@@ -64,12 +64,8 @@ def send_test_message(sock,message):
     print("Sending CER...")
     sock.sendall(cer)
 
-    print("Waiting for CEA...")
+    print("Waiting for CEA...")    
     
-    # print("Sending test message...")
-    # sock.sendall(dummy_msg)
-    
-    # print("Waiting for response...")
     try:
         response = sock.recv(4096)
         print(f"Received {len(response)} bytes")

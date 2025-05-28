@@ -9,11 +9,15 @@ from diameter.message import Avp
 from diameter.message.constants import *
 from typing import Optional
 from diameter.message.avp.dictionary import AVP_DICTIONARY
+from dotenv import load_dotenv
+import os
+load_dotenv() 
 
 # AVP Codes
 AVP_SUBSCRIPTION_ID = 443
 AVP_SUBSCRIPTION_ID_TYPE = 450
 AVP_SUBSCRIPTION_ID_DATA = 444
+GY_APPLICATION_ID = os.getenv("GY_APPLICATION_ID")
 
 # Vendor ID for 3GPP
 VENDOR_3GPP = 0
@@ -74,6 +78,7 @@ def build_cer(message: Union[None, cerMessage] = None) -> bytes:
         cer.vendor_id = message.vendor_id
         cer.product_name = message.product_name
         cer.origin_state_id = message.origin_state_id
+        cer.auth_application_id = int(GY_APPLICATION_ID)
         cer.header.application_id = message.application_id    
         cer.header.command_code = message.command_code
         cer.header.hop_by_hop_identifier = message.hop_by_hop_id
@@ -110,7 +115,7 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         ccr.destination_realm = message.destination_realm.encode('utf-8')
         # Set the service context ID and auth application ID
         ccr.service_context_id = message.service_context_id
-        ccr.auth_application_id = message.auth_application_id
+        ccr.auth_application_id = int(GY_APPLICATION_ID)
         ccr.header.application_id = message.application_id
         ccr.header.hop_by_hop_identifier = message.hop_by_hop_id
         ccr.header.end_to_end_identifier = message.end_to_end_id
