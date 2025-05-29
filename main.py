@@ -1,6 +1,6 @@
 from typing import Union
 from contextlib import asynccontextmanager
-from diameter.message.commands import CapabilitiesExchangeRequest, CapabilitiesExchangeAnswer, CreditControlRequest
+from diameter.message.commands import CapabilitiesExchangeRequest, CapabilitiesExchangeAnswer, CreditControlRequest, DisconnectPeerRequest
 from fastapi import FastAPI
 from diameter.message import Message
 from client_config.client_2 import create_ssl_socket,send_test_message
@@ -53,6 +53,13 @@ class ccrMessage(BaseModel):
     application_id: int
     requested_action: int
     subscription_id: Optional[SubscriptionId]
+class dprMessage(BaseModel):
+    origin_host: str
+    origin_realm: str
+    disconnect_cause: int
+    hop_by_hop_id: int
+    end_to_end_id: int    
+    application_id: int
 
 ssl_sock = None  # Define ssl_sock as a global variable
 def build_cer(message: Union[None, cerMessage] = None) -> bytes:
@@ -66,10 +73,10 @@ def build_cer(message: Union[None, cerMessage] = None) -> bytes:
         cer.vendor_id = 12345
         cer.product_name = 'PyDiameter'
         cer.origin_state_id = 1
-        cer.hop_by_hop_id = 12345678
-        cer.end_to_end_id = 87654321
-        cer.command_code = 257
-        cer.application_id = 2
+        cer.header.hop_by_hop_id = 12345678
+        cer.header.end_to_end_id = 87654321
+        cer.header.command_code = 257
+        cer.header.application_id = 2
     else:
         # Use the provided message data
         cer.origin_host = message.origin_host.encode('utf-8')
@@ -92,10 +99,9 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
     # If message is None, use default values
     if message is None:
         ccr.origin_host = b'client.localdomain'
-        ccr.origin_realm = b'testrealm'
-        ccr.host_ip_address = ['127.0.0.1']   
-        ccr.hop_by_hop_id = 12345678
-        ccr.end_to_end_id = 87654321
+        ccr.origin_realm = b'testrealm'  
+        ccr.header.hop_by_hop_identifier = 12345678
+        ccr.header.end_to_end_identifier = 87654321
         ccr.cc_request_type = b'INITIAL'  
         ccr.cc_request_number = 1
         ccr.session_id = 123
@@ -108,7 +114,6 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         # Use the provided message data
         ccr.origin_host = message.origin_host.encode('utf-8')
         ccr.origin_realm = message.origin_realm.encode('utf-8')
-        ccr.host_ip_address = message.host_ip_address
         ccr.cc_request_type = message.cc_request_type  
         ccr.cc_request_number = message.cc_request_number
         ccr.session_id = message.session_id
@@ -120,7 +125,8 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
         ccr.header.hop_by_hop_identifier = message.hop_by_hop_id
         ccr.header.end_to_end_identifier = message.end_to_end_id
         ccr.requested_action = message.requested_action
-       
+        if message.cc_request_type == 3:
+            ccr.termination_cause = 1  # Example termination cause, adjust as needed
         
         if message.subscription_id:
             print('ading subscription data')
@@ -134,6 +140,35 @@ def build_ccr(message: Union[None,ccrMessage ] = None) -> bytes:
     print(ccr.as_bytes())
     return ccr.as_bytes()
 
+def build_dpr(message: Union[None,dprMessage ] = None) -> bytes:
+    dpr = DisconnectPeerRequest()
+    """Build a DPR message with the given parameters"""
+    # If message is None, use default values
+    if message is None:
+        dpr.origin_host = b'client.localdomain'
+        dpr.origin_realm = b'testrealm'
+        dpr.disconnect_cause = 0  # Example disconnect cause, adjust as needed   
+        dpr.header.hop_by_hop_identifier = 12345678
+        dpr.header.end_to_end_identifier = 87654321
+        dpr.header.application_id = 0
+        dpr.header.command_code = 282  # Disconnect-Peer-Request command code
+        dpr.header.is_request = True
+    else:
+        # Use the provided message data
+        dpr.origin_host = message.origin_host.encode('utf-8')
+        dpr.origin_realm = message.origin_realm.encode('utf-8')  
+        dpr.disconnect_cause = message.disconnect_cause
+        dpr.header.application_id = message.application_id
+        dpr.header.hop_by_hop_identifier = message.hop_by_hop_id
+        dpr.header.end_to_end_identifier = message.end_to_end_id
+        dpr.header.command_code = 282  # Disconnect-Peer-Request command code
+        dpr.header.is_request = True
+        
+    # Encode the message
+    print(dpr.as_bytes())
+    return dpr.as_bytes()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Method that gets called upon app initialization to initialize ssl connection & close the connection on exit"""
@@ -142,6 +177,7 @@ async def lifespan(app: FastAPI):
     print("SSL socket created")
     yield
     ssl_sock.close()
+    print("SSL socket closed")
     
 app = FastAPI(lifespan=lifespan)
 
@@ -170,4 +206,19 @@ async def send_ccr_message(ccr: ccrMessage):
     cea = Message.from_bytes(response)
     
     return {"response": cea}
+
+@app.post("/send_dpr_message")
+async def send_dpr_message(dpr: dprMessage):
+    # Build the DPR message using the provided data
+    message = build_dpr(dpr)
+    
+    # Send the message
+    response = send_test_message(ssl_sock, message)
+    
+    # Decode the response
+    dpa = Message.from_bytes(response)
+    
+    return {"response": dpa}
+
+
 
